@@ -11,8 +11,7 @@ samples=("foo_treat1 foo_treat2 foo_treatn foo_control1 foo_control2 foo_control
 
 cd ${DIR}
 
-#removed excess filename architecture
-#paired end reads = two commands
+#remove excess filename architecture, paired end reads
 for i in $samples;
 do mv ${i}_L000_R1_001.fastq.gz ${i}_R1.fastq.gz;
 mv ${i}_L000_R2_001.fastq.gz ${i}_R2.fastq.gz;
@@ -120,7 +119,6 @@ done
 #samtools flagstat ${i}.fixed.bam
 
 #note: bedpe corresponds to exactly half of "properly paired" due to read collapse
-# corresponding tagAlign file (generated in next step) will split paired reads to two lines
 
 ########################
 #TN5 transposase shifting of BEDPE files
