@@ -60,7 +60,11 @@ cd ${DIR}/trimmed
 for i in $samples;
 do gunzip ${i}_R1_trimmed.fq.gz;
 gunzip ${i}_R2_trimmed.fq.gz;
-bowtie2 -p 16 --very-sensitive -X 1000 -x ${REFDIR}/mm10_bt2_index -1 ${i}_R1_trimmed.fq -2 ${i}_R2_trimmed.fq | samtools view -bS - > ${i}.bam;
+bowtie2 -p 16 --very-sensitive \
+-X 1000 \
+-x ${REFDIR}/mm10_bt2_index \
+-1 ${i}_R1_trimmed.fq \
+-2 ${i}_R2_trimmed.fq | samtools view -bS - > ${i}.bam;
 gzip ${i}_R1_trimmed.fq;
 gzip ${i}_R2_trimmed.fq;
 done
@@ -89,7 +93,11 @@ samtools sort -T /tmp/${i}.sorted.noMT -o ${i}.sorted.noMT.bam ${i}.noMT.sorted.
 PICARD=("${BIN}/picard") # location of picard tools
 
 for i in $samples;
-do java -jar ${PICARD}/build/libs/picard.jar MarkDuplicates I=${i}.sorted.noMT.bam O=${i}.noDups.sorted.noMT.bam M=${i}_dups.txt REMOVE_DUPLICATES=true;
+do java -jar ${PICARD}/build/libs/picard.jar MarkDuplicates \
+I=${i}.sorted.noMT.bam \
+O=${i}.noDups.sorted.noMT.bam \
+M=${i}_dups.txt \
+REMOVE_DUPLICATES=true;
 done
 #command takes ~15-20 minutes/sample in interactive dev node
 
@@ -119,7 +127,10 @@ done
 
 #for BEDPE files
 for i in $samples;
-do awk -F $'\t' 'BEGIN {OFS = FS}{ if ($9 == "+") {$2 = $2 + 4; $6 = $6 - 5} else if ($9 == "-") {$3 = $3 - 5; $5 = $5 + 4} print $0}' ${i}.fixed.bedpe > ${i}.tn5.bedpe;
+do awk -F $'\t' 'BEGIN {OFS = FS}{ \
+if ($9 == "+") {$2 = $2 + 4; $6 = $6 - 5} \
+else if ($9 == "-") {$3 = $3 - 5; $5 = $5 + 4} \
+print $0}' ${i}.fixed.bedpe > ${i}.tn5.bedpe;
 done
 
 #######################
@@ -128,7 +139,8 @@ done
 
 for i in $samples;
 do awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\n",$2,$3,$5,$6}' ${i}.tn5.bedpe > ${i}.coords.bed;
-bash sort.sh ${i}.coords.bed | paste - ${i}.tn5.bedpe | awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\n",$5,$1,$4,$11}' - > ${i}.final.tn5.bedpe;
+bash sort.sh ${i}.coords.bed | paste - ${i}.tn5.bedpe | awk 'BEGIN{OFS="\t"}\
+{printf "%s\t%s\t%s\t%s\n",$5,$1,$4,$11}' - > ${i}.final.tn5.bedpe;
 rm ${i}.coords.bed;
 done
 #takes ~20-40 minutes per sample
@@ -172,7 +184,8 @@ done
 #export bin to PATH for calling macs2
 export PATH=/mnt/home/usr/.local/bin:$PATH
 
-ALLSAMPLES=("foo_treat1 foo_treat2 foo_treatn foo_treat.cat foo_control1 foo_control2 foo_controln foo_control.cat") # real samples and pooled replicates
+ALLSAMPLES=("foo_treat1 foo_treat2 foo_treatn foo_treat.cat foo_control1 foo_control2 foo_controln foo_control.cat")
+# real samples and pooled replicates
 
 #narrow peaks
 for i in $ALLSAMPLES;
@@ -198,7 +211,8 @@ done
 module load bedtools
 
 for i in $ALL_SAMPLES;
-do bedtools intersect -v -a ${i}_peaks.narrowPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' | awk 'BEGIN{OFS="\t"} {print $0}' > ${i}_peaks.filt.narrowPeak;
+do bedtools intersect -v -a ${i}_peaks.narrowPeak \
+-b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' | awk 'BEGIN{OFS="\t"} {print $0}' > ${i}_peaks.filt.narrowPeak;
 done
 
 ##################################
@@ -208,8 +222,18 @@ module load bedtools
 
 peaktype="broad"
 for i in $POOLED;
-# Find pooled peaks that overlap Rep1 and Rep2 where overlap is defined as the fractionaloverlap wrt any one of the overlapping peak pairs  >= 0.5
-do intersectBed -wo -a ${i}.cat_${peaktype}_peaks.narrowPeak -b ${i}1_${peaktype}_peaks.narrowPeak | awk 'BEGIN{FS="\t";OFS="\t"}{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | cut -f 1-10 | sort | uniq | intersectBed -wo -a stdin -b ${i}2_${peaktype}_peaks.narrowPeak | awk 'BEGIN{FS="\t";OFS="\t"}{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | cut -f 1-10 | sort | uniq > ${i}.PooledInRep1AndRep2.narrowPeak;
+# Find pooled peaks that overlap Rep1 and Rep2
+# overlap is defined as the fractionaloverlap wrt any one of the overlapping peak pairs  >= 0.5
+do intersectBed -wo \
+-a ${i}.cat_${peaktype}_peaks.narrowPeak \
+-b ${i}1_${peaktype}_peaks.narrowPeak | awk 'BEGIN{FS="\t";OFS="\t"}\
+{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
+cut -f 1-10 | sort | uniq | \
+intersectBed -wo \
+-a stdin \
+-b ${i}2_${peaktype}_peaks.narrowPeak | awk 'BEGIN{FS="\t";OFS="\t"}\
+{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
+cut -f 1-10 | sort | uniq > ${i}.PooledInRep1AndRep2.narrowPeak;
 done
 
 #############################
@@ -236,7 +260,10 @@ samples <- read.csv("sample-file.csv") # see DiffBind manual for making sample f
 
 #construct experiment DBA object, edgeR analysis
 #edgeR
-foo<- dba(minOverlap = 2, sampleSheet = "sample-file.csv", peakCaller = "bed", config=data.frame(AnalysisMethod=DBA_EDGER, fragmentSize=150))
+foo<- dba(minOverlap = 2, 
+	sampleSheet = "sample-file.csv", 
+	peakCaller = "bed", 
+	config=data.frame(AnalysisMethod=DBA_EDGER, fragmentSize=150))
 #try different fragmentSize params... sample by sample basis?
 #https://support.bioconductor.org/p/98736/
 #try DESeq2 algorithm too...
