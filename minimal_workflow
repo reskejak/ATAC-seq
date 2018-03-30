@@ -123,9 +123,8 @@ done
 # corresponding tagAlign file (generated in next step) will split paired reads to two lines
 
 ########################
-#TN5 transposase shifting of tagAligns
+#TN5 transposase shifting of BEDPE files
 
-#for BEDPE files
 for i in $samples;
 do awk -F $'\t' 'BEGIN {OFS = FS}{ \
 if ($9 == "+") {$2 = $2 + 4; $6 = $6 - 5} \
