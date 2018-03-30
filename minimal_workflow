@@ -289,11 +289,10 @@ pdf(plot(foo, contrast=1), file="foo-samples-peaks.pdf")
 #HOMER - peak annotation and motif finding
 
 HOMER=("${BIN}/homer/bin") # location of HOMER tools
-
 export PATH=$PATH:${BIN}/homer/bin
 
 #peak annotation
-annotatePeaks.pl foo_edgeR-diff-peaks.txt mm10 -size given > KOvsWT_HOMERanno_size-given.txt # must use TSV without header column
+annotatePeaks.pl foo_edgeR-diff-peaks.txt mm10 -size given > HOMER_anno_size-given.txt # must input TSV without header column
 #output does not change with or without "-size given" flag
 
 #find motifs
