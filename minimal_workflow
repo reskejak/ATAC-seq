@@ -1,6 +1,6 @@
-#ATAC-seq workflow and software commands
-#March 2018
-#Michigan State University
+# ATAC-seq workflow and software commands
+# March 2018
+# Michigan State University
 
 DIR=("/mnt/home/usr/foo")
 REFDIR=("/mnt/home/usr/ref_genome") # location of reference genomes
@@ -11,24 +11,24 @@ samples=("foo_treat1 foo_treat2 foo_treatn foo_control1 foo_control2 foo_control
 
 cd ${DIR}
 
-#remove excess filename architecture, paired end reads
+# remove excess filename architecture, paired end reads
 for i in $samples;
 do mv ${i}_L000_R1_001.fastq.gz ${i}_R1.fastq.gz;
 mv ${i}_L000_R2_001.fastq.gz ${i}_R2.fastq.gz;
 done
 
 #########################
-#fastqc on raw files
+# fastqc on raw files
 for i in $samples;
 do fastqc ${i}_R1.fastq.gz;
 fastqc ${i}_R2.fastq.gz;
 done
 
 ##########################
-#make trimmed output directory
+# make trimmed output directory
 mkdir trimmed
 
-#trim galore
+# trim galore
 for i in $samples;
 do trim_galore --paired -o trimmed/ ${i}_R1.fastq.gz ${i}_R2.fastq.gz;
 done
@@ -36,25 +36,25 @@ done
 cd trimmed
 
 ##########################
-#fastqc on trimmed files
+# fastqc on trimmed files
 for i in $samples;
 do fastqc ${i}_R1_trimmed.fq.gz;
 fastqc ${i}_R2_trimmed.fq.gz
 done
 
 ###########################
-#bowtie2 for alignment
+# bowtie2 for alignment
 
 module load bowtie2
 module load samtools
 
-#build mm10 index
+# build mm10 index
 cd ${REFDIR}
 bowtie2-build mm10.fa mm10_bt2_index
 
-#align
-#note: alignment only takes ~20 minutes with 64 gb RAM and 16 procs
-#supply two hours job time to be safe for unzipping, aligning, zipping, and sorting bam
+# align
+# note: alignment only takes ~20 minutes with 64 gb RAM and 16 procs
+# supply two hours job time to be safe for unzipping, aligning, zipping, and sorting bam
 cd ${DIR}/trimmed
 for i in $samples;
 do gunzip ${i}_R1_trimmed.fq.gz;
@@ -73,7 +73,7 @@ done
 samtools sort -T /tmp/${i}.sorted -o ${i}.sorted.bam ${i}.bam
 
 ###############
-#remove mitochondrial reads
+# remove mitochondrial reads
 
 HARVARD=("${BIN}/ATAC-seq") # location of Harvard ATAC-seq module
 module load samtools
@@ -87,7 +87,7 @@ samtools sort -T /tmp/${i}.sorted.noMT -o ${i}.sorted.noMT.bam ${i}.noMT.sorted.
 # wc -l after sorting at this point yields identical result as removeChrom output report
 
 ########################
-#remove PCR duplicates
+# remove PCR duplicates
 
 PICARD=("${BIN}/picard") # location of picard tools
 
@@ -98,30 +98,30 @@ O=${i}.noDups.sorted.noMT.bam \
 M=${i}_dups.txt \
 REMOVE_DUPLICATES=true;
 done
-#command takes ~15-20 minutes/sample in interactive dev node
+# command takes ~15-20 minutes/sample in interactive dev node
 
 ######################
-#sort by read name and update SAM flags following alignment post-processing
-#and convert to bedpe
-#https://www.biostars.org/p/149119/
+# sort by read name and update SAM flags following alignment post-processing
+# and convert to bedpe
+# https://www.biostars.org/p/149119/
 
 module load samtools
 module load bedtools
 
-#loop for sort by read name, fix mate flags, and convert properly-paired reads to bedpe
+# loop for sort by read name, fix mate flags, and convert properly-paired reads to bedpe
 for i in $samples;
 do samtools sort -n ${i}.noDups.sorted.noMT.bam ${i}.sorted.noDups.noMT;
 samtools fixmate ${i}.sorted.noDups.noMT.bam ${i}.fixed.bam;
 samtools view -bf 0x2 ${i}.fixed.bam | bedtools bamtobed -i stdin -bedpe > ${i}.fixed.bedpe;
 done
 
-#example for calculating mapping statistics
-#samtools flagstat ${i}.fixed.bam
+# example for calculating mapping statistics
+# samtools flagstat ${i}.fixed.bam
 
-#note: bedpe corresponds to exactly half of "properly paired" due to read collapse
+# note: bedpe corresponds to exactly half of "properly paired" due to read collapse
 
 ########################
-#TN5 transposase shifting of BEDPE files
+# TN5 transposase shifting of BEDPE files
 
 for i in $samples;
 do awk -F $'\t' 'BEGIN {OFS = FS}{ \
@@ -131,8 +131,8 @@ print $0}' ${i}.fixed.bedpe > ${i}.tn5.bedpe;
 done
 
 #######################
-#convert files to properly formatted "minimal" bedpe for macs2
-#macs2 simplified bedpe format is: [chr] [start] [stop] [name]
+# convert files to properly formatted "minimal" bedpe for macs2
+# macs2 simplified bedpe format is: [chr] [start] [stop] [name]
 
 for i in $samples;
 do awk 'BEGIN{OFS="\t"}{printf "%s\t%s\t%s\t%s\n",$2,$3,$5,$6}' ${i}.tn5.bedpe > ${i}.coords.bed;
@@ -140,12 +140,12 @@ bash sort.sh ${i}.coords.bed | paste - ${i}.tn5.bedpe | awk 'BEGIN{OFS="\t"}\
 {printf "%s\t%s\t%s\t%s\n",$5,$1,$4,$11}' - > ${i}.final.tn5.bedpe;
 rm ${i}.coords.bed;
 done
-#takes ~20-40 minutes per sample
+# takes ~20-40 minutes per sample
 
 ####################
-#sort.sh
-#sort each row horizontally
-#usage: bash sort.sh coords.bed > coords.sorted.bed
+# sort.sh
+# sort each row horizontally
+# usage: bash sort.sh coords.bed > coords.sorted.bed
 #####################
 while read line; do
       ary=(${line})
@@ -161,10 +161,10 @@ while read line; do
       echo ${ary[@]}
 done < ${1}
 ####################
-#https://www.unix.com/shell-programming-and-scripting/180835-sort-each-row-horizontally-awk-any.html
+# https://www.unix.com/shell-programming-and-scripting/180835-sort-each-row-horizontally-awk-any.html
 
 #########################
-#pool biological replicates
+# pool biological replicates
 
 POOLED=("foo_treat foo_control") # group identifier, i.e. experimental condition
 
@@ -172,19 +172,19 @@ for i in $POOLED;
 do cat ${i}1.final.tn5.bedpe ${i}2.final.tn5.bedpe > ${i}.cat.final.tn5.bedpe;
 done
 
-#short computation time <2 minutes each sample
+# short computation time <2 minutes each sample
 
 ################################
-#Peak calling by macs2
-#NOTE: Ben Johnson suggests calling broadpeaks for ATAC-seq
+# Peak calling by macs2
+# NOTE: Ben Johnson suggests calling broadpeaks for ATAC-seq
 
-#export bin to PATH for calling macs2
+# export bin to PATH for calling macs2
 export PATH=/mnt/home/usr/.local/bin:$PATH
 
 ALLSAMPLES=("foo_treat1 foo_treat2 foo_treatn foo_treat.cat foo_control1 foo_control2 foo_controln foo_control.cat")
 # real samples and pooled replicates
 
-#narrow peaks
+# narrow peaks
 for i in $ALLSAMPLES;
 do macs2 callpeak -t ${i}.final.tn5.bedpe \
 -f BEDPE \
@@ -192,7 +192,7 @@ do macs2 callpeak -t ${i}.final.tn5.bedpe \
 -g mm \
 --keep-dup all;
 done
-#broad peaks
+# broad peaks
 for i in $ALLSAMPLES;
 do macs2 callpeak -t ${i}.final.tn5.bedpe \
 -f BEDPE \
@@ -204,7 +204,7 @@ do macs2 callpeak -t ${i}.final.tn5.bedpe \
 done
 
 ###################################
-#mask repeats by blacklist filtering
+# mask repeats by blacklist filtering
 module load bedtools
 
 for i in $ALL_SAMPLES;
@@ -213,8 +213,8 @@ do bedtools intersect -v -a ${i}_peaks.narrowPeak \
 done
 
 ##################################
-#Naive overlap thresholding for MACS2 peak calls
-#(not required for DiffBind differential-peak calling)
+# Naive overlap thresholding for MACS2 peak calls
+# (not required for DiffBind differential-peak calling)
 module load bedtools
 
 peaktype="broad"
@@ -234,65 +234,121 @@ cut -f 1-10 | sort | uniq > ${i}.PooledInRep1AndRep2.narrowPeak;
 done
 
 #############################
-#Differential analysis between 2 conditions
-#https://groups.google.com/forum/#!topic/idr-discuss/Q2B2biJ9is0
+# Differential analysis between 2 conditions
+# https://groups.google.com/forum/#!topic/idr-discuss/Q2B2biJ9is0
 
-#DiffBind in R, via HPCC
+# DiffBind in R, via HPCC
 
-#load latest version of R
+# load latest version of R
 module swap GNU GNU/4.9
 module load OpenMPI/1.10.0
 module load R/3.3.2
 R
 
-#set local R library
+# set local R library
 .libPaths("/mnt/home/usr/R/local/R_libs")
 
 setwd("/mnt/home/usr/foo")
 
 library("DiffBind")
 
-#import sample file csv
+# import sample file csv
 samples <- read.csv("sample-file.csv") # see DiffBind manual for making sample file
 
-#construct experiment DBA object, edgeR analysis
-#edgeR
+# construct experiment DBA object, edgeR analysis
+# edgeR
 foo<- dba(minOverlap = 2, 
 	sampleSheet = "sample-file.csv", 
 	peakCaller = "bed", 
 	config=data.frame(AnalysisMethod=DBA_EDGER, fragmentSize=150))
-#try different fragmentSize params... sample by sample basis?
-#https://support.bioconductor.org/p/98736/
-#try DESeq2 algorithm too...
+# try different fragmentSize params... sample by sample basis?
+# https://support.bioconductor.org/p/98736/
+# try DESeq2 algorithm too...
 
-#count reads in open-chromatin intervals
+# count reads in open-chromatin intervals
 foo <- dba.count(foo)
 
-#setup contrasts for differential-chromatin analysis
+# setup contrasts for differential-chromatin analysis
 foo <- dba.contrast(foo, minMembers=2, categories=DBA_FACTOR)
 	
-#differential-chromatin analysis
+# differential-chromatin analysis
 foo <- dba.analyze(foo)
 
-#summarize output
+# summarize output
 foo.db <- dba.report(foo)
 
-#write output to csv
+# write output to csv
 write.csv(foo.db, file="foo_edgeR-diff-peaks.csv")
 
-#plot sample correlation by peaks
+# plot sample correlation by peaks
 pdf(plot(foo, contrast=1), file="foo-samples-peaks.pdf")
 
 #################################
-#HOMER - peak annotation and motif finding
+# HOMER - peak annotation and motif finding
 
 HOMER=("${BIN}/homer/bin") # location of HOMER tools
 export PATH=$PATH:${BIN}/homer/bin
 
-#peak annotation
+# peak annotation
 annotatePeaks.pl foo_edgeR-diff-peaks.txt mm10 -size given > HOMER_anno_size-given.txt # must input TSV without header column
-#output does not change with or without "-size given" flag
+# output does not change with or without "-size given" flag
 
-#find motifs
+# find motifs
 findMotifs.pl foo_edgeR-diff-peaks.txt mouse foo_MotifResults -start -400 -end 100 -len 8,10 -p 4 
-#"This will search for motifs of length 8 and 10 from -400 to +100 relative to the TSS, using 4 threads (i.e. 4 CPUs)"
+# "This will search for motifs of length 8 and 10 from -400 to +100 relative to the TSS, using 4 threads (i.e. 4 CPUs)"
+
+#################################
+# creating UCSC browser tracks
+# based on Tao Liu's bdgcmp method
+# https://github.com/taoliu/MACS/wiki/Build-Signal-Track#Run_MACS2_bdgcmp_to_generate_foldenrichment_and_logLR_track
+
+# re-run macs2 (broad peaks) with bedGraph flag for each true replicate
+# use -B --SPMR for normalizing to fragments per million reads
+for i in $samples;
+do macs2 callpeak -t ${i}.final.tn5.bedpe \
+-f BEDPE \
+-n ${i}_broad_norm \
+-g mm \
+-B \
+--SPMR \
+--broad \
+--broad-cutoff 0.05 \
+--keep-dup all;
+done
+
+# use macs2 bdgcmp to build track
+# description of bdgcmp options for generating signal to noise statistic visualization
+# https://groups.google.com/forum/#!topic/macs-announcement/yefHwueKbiY
+# log likelihood ratio is very clean; could also try fold enrichment (see documentation) but exhibits much more noise
+# see documentation for -p flag (pseudocount) addition to avoid log(0) calculation
+for i in $samples;
+do macs2 bdgcmp -t ${i}_broad_norm_treat_pileup.bdg \
+-c ${i}_broad_norm_control_lambda.bdg \
+-o ${i}_broad_norm_logLR.bdg \
+-m logLR \
+-p 0.00001;
+done
+
+module load bedtools
+# bdg2bw, from Tao Liu (MACS2)
+# https://gist.github.com/taoliu/2469050
+for i in $samples;
+do ${BIN}/bdg2bw ${i}_broad_norm_logLR.bdg ${REFDIR}/mm10.chrom.sizes;
+done
+
+# wigCorrelate biological replicates for statistic
+for i in $POOLED;
+do ${BIN}/wigCorrelate ${POOLED}1_broad_norm_logLR.bdg ${POOLED}2_broad_norm_logLR.bdg;
+done
+
+module load bedtools
+# convert bed to bigWig in one pipe command
+# http://seqanswers.com/forums/showthread.php?t=4731
+for i in $samples;
+do bedtools sort -i ${i}_broad_peaks.filt.broadPeak | \
+bedtools genomecov -bg -i stdin -g ${REFDIR}/mm10.chrom.sizes | \
+wigToBigWig -clip stdin ${REFDIR}/mm10.chrom.sizes ${i}_broad_peaks.filt.bigWig;
+done
+
+# then upload and generate public URL for bigWig files and create UCSC track hub for visualization
+# for more information: https://genome.ucsc.edu/goldenpath/help/hgTrackHubHelp.html
