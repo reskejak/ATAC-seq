@@ -256,17 +256,17 @@ setwd("/mnt/home/usr/foo")
 library("DiffBind")
 
 # import sample file csv
-samples <- read.csv("sample-file.csv") # see DiffBind manual for making sample file
+# see DiffBind manual for generation of this file
+samples <- read.csv("foo-sample-file.csv")
 
-# construct experiment DBA object, edgeR analysis
-# edgeR
+# construct experiment DBA object, DESeq2 analysis
 foo<- dba(minOverlap = 2, 
-	sampleSheet = "sample-file.csv", 
+	sampleSheet = "foo-sample-file.csv", 
 	peakCaller = "bed", 
-	config=data.frame(AnalysisMethod=DBA_EDGER, fragmentSize=150))
-# try different fragmentSize params... sample by sample basis?
-# https://support.bioconductor.org/p/98736/
-# try DESeq2 algorithm too...
+	config=data.frame(AnalysisMethod=DBA_DESEQ2, fragmentSize=150))
+# for fragment sizes, use macs2 .xls output file param
+# for example...
+foo$config$fragmentSize <- c(129, 140, 137, 134, 102, 91, 88)
 
 # count reads in open-chromatin intervals
 foo <- dba.count(foo)
@@ -275,13 +275,15 @@ foo <- dba.count(foo)
 foo <- dba.contrast(foo, minMembers=2, categories=DBA_FACTOR)
 	
 # differential-chromatin analysis
-foo <- dba.analyze(foo)
+foo <- dba.analyze(foo, bFullLibrarySize=FALSE)
+# DESeq2 only works for my data when bFullLibrarySize=FALSE (default is =TRUE)
+# Look into this DiffBind parameter for more information about usage...
 
 # summarize output
 foo.db <- dba.report(foo)
 
 # write output to csv
-write.csv(foo.db, file="foo_edgeR-diff-peaks.csv")
+write.csv(foo.db, file="foo_DESeq2-diff-peaks.csv")
 
 # plot sample correlation by peaks
 pdf(plot(foo, contrast=1), file="foo-samples-peaks.pdf")
@@ -292,13 +294,21 @@ pdf(plot(foo, contrast=1), file="foo-samples-peaks.pdf")
 HOMER=("${BIN}/homer/bin") # location of HOMER tools
 export PATH=$PATH:${BIN}/homer/bin
 
+# peak annotation, gene ontology, and genome ontology
+annotatePeaks.pl foo_DESeq2-diff-peaks_new.bed mm10 \
+-size given \
+-annStats KOvsWT_DESeq2_Homer-annotation-stats.txt \
+-go KOvsWT_DESeq2_HOMER-GO \
+-genomeOntology KOvsWT_DESeq2_HOMER-genomeOntology > KOvsWT_DESeq2_HOMER-annotation.txt
+
 # peak annotation
-annotatePeaks.pl foo_edgeR-diff-peaks.txt mm10 -size given > HOMER_anno_size-given.txt # must input TSV without header column
+annotatePeaks.pl foo_DESeq2-diff-peaks.txt mm10 -size given > HOMER_anno_size-given.txt # must input TSV without header column
 # output does not change with or without "-size given" flag
 
 # find motifs
-findMotifs.pl foo_edgeR-diff-peaks.txt mouse foo_MotifResults -start -400 -end 100 -len 8,10 -p 4 
+findMotifs.pl foo_DESeq2-diff-peaks.txt mouse foo_MotifResults -start -400 -end 100 -len 8,10 -p 4 
 # "This will search for motifs of length 8 and 10 from -400 to +100 relative to the TSS, using 4 threads (i.e. 4 CPUs)"
+# be wary of 
 
 #################################
 # creating UCSC browser tracks
