@@ -1,6 +1,7 @@
 # ATAC-seq workflow and software commands
 # March 2018
 # Michigan State University
+# reskejak@msu.edu
 
 DIR=("/mnt/home/usr/foo")
 REFDIR=("/mnt/home/usr/ref_genome") # location of reference genomes
