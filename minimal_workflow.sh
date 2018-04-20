@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # ATAC-seq workflow and software commands
 # March 2018
 # Michigan State University
