@@ -220,19 +220,29 @@ done
 # (not required for DiffBind differential-peak calling)
 module load bedtools
 
-peaktype="broad"
 for i in $POOLED;
-# Find pooled peaks that overlap Rep1 and Rep2
+# Find pooled broadPeaks that overlap Rep1 and Rep2
 # overlap is defined as the fractionaloverlap wrt any one of the overlapping peak pairs  >= 0.5
 do intersectBed -wo \
--a ${i}.cat_${peaktype}_peaks.narrowPeak \
--b ${i}1_${peaktype}_peaks.narrowPeak | awk 'BEGIN{FS="\t";OFS="\t"}\
-{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
+-a ${i}.cat_broad_peaks.broadPeak -b ${i}1_broad_peaks.broadPeak | \
+awk 'BEGIN{FS="\t";OFS="\t"}{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
 cut -f 1-10 | sort | uniq | \
 intersectBed -wo \
--a stdin \
--b ${i}2_${peaktype}_peaks.narrowPeak | awk 'BEGIN{FS="\t";OFS="\t"}\
-{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
+-a stdin -b ${i}2_broad_peaks.broadPeak | \
+awk 'BEGIN{FS="\t";OFS="\t"}{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
+cut -f 1-10 | sort | uniq > ${i}.PooledInRep1AndRep2.broadPeak;
+done
+
+for i in $POOLED;
+# Find pooled narrowPeaks that overlap Rep1 and Rep2
+# overlap is defined as the fractionaloverlap wrt any one of the overlapping peak pairs  >= 0.5
+do intersectBed -wo \
+-a ${i}.cat_narrow_peaks.narrowPeak -b ${i}1_narrow_peaks.narrowPeak | \
+awk 'BEGIN{FS="\t";OFS="\t"}{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
+cut -f 1-10 | sort | uniq | \
+intersectBed -wo \
+-a stdin -b ${i}2_narrow_peaks.narrowPeak | \
+awk 'BEGIN{FS="\t";OFS="\t"}{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
 cut -f 1-10 | sort | uniq > ${i}.PooledInRep1AndRep2.narrowPeak;
 done
 
