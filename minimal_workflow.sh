@@ -232,6 +232,11 @@ intersectBed -wo \
 awk 'BEGIN{FS="\t";OFS="\t"}{s1=$3-$2; s2=$13-$12; if (($21/s1 >= 0.5) || ($21/s2 >= 0.5)) {print $0}}' | \
 cut -f 1-10 | sort | uniq > ${i}.PooledInRep1AndRep2.narrowPeak;
 done
+# mask repeats in naive overlap by blacklist filtering
+for i in $POOLED;
+do bedtools intersect -v -a ${i}.PooledInRep1AndRep2.narrowPeak \
+-b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' | awk 'BEGIN{OFS="\t"} {print $0}' > ${i}.PooledInRep1AndRep2.filt.narrowPeak;
+done
 
 #############################
 # Differential analysis between 2 conditions
