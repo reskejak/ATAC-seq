@@ -277,9 +277,10 @@ foo <- dba.count(foo)
 foo <- dba.contrast(foo, minMembers=2, categories=DBA_FACTOR)
 	
 # differential-chromatin analysis
-foo <- dba.analyze(foo, bFullLibrarySize=FALSE)
-# DESeq2 only works for my data when bFullLibrarySize=FALSE (default is =TRUE)
-# Look into this DiffBind parameter for more information about usage...
+foo <- dba.analyze(foo, bFullLibrarySize=TRUE)
+# bFullLibrarySize decides normalization method used for peak quantification
+# Try both =TRUE and =FALSE to observe differences (=TRUE is "more stringent")
+# See DiffBind manual for more information
 
 # summarize output
 foo.db <- dba.report(foo)
