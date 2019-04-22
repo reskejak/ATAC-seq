@@ -59,7 +59,6 @@ blacklist <- read.table("~/ref_genome/hg38.blacklist.bed", sep="\t")
 blacklist <- GRanges(seqnames = blacklist$V1,
                      ranges = IRanges(start = blacklist$V2,
                                       end = blacklist$V3))
-
 # define read parameters
 standard.chr <- paste0("chr", c(1:22, "X")) # only use standard chromosomes (and no chrY)
 param <- readParam(max.frag=1000, pe="both", discard=blacklist, restrict=standard.chr)
@@ -85,7 +84,6 @@ controln.corr <- correlateReads(controln.pe.bam, max.delay, param=param)
 ##############################
 # count reads in windows specified by MACS2                                      
 peak.counts <- regionCounts(pe.bams, all.peaks, param=param)
-gc()
 
 ##############################
 # MACS2 peaks only: filter low abundance peaks
