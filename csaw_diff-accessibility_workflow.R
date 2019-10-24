@@ -116,7 +116,7 @@ binned <- windowCounts(pe.bams, bin=TRUE, width=10000, param=param)
 
 # method 1: MACS2 peaks only, TMM normalization based on binned counts
 peak.counts.tmm <- peak.counts.filt
-peak.counts.tmm <- normOffsets(binned, se.out=peak.counts.tmm)
+peak.counts.tmm <- normFactors(binned, se.out=peak.counts.tmm)
 
 # method 2: MACS2 peaks only, csaw lowess-normalization
 peak.counts.loess <- peak.counts.filt
@@ -125,7 +125,7 @@ peak.counts.loess <- normOffsets(peak.counts.loess, type="loess", se.out=TRUE)
 
 # method 3: csaw de novo peaks by local enrichment, TMM normalization based on binned counts
 counts.local.tmm <- counts.local.filt
-counts.local.tmm <- normOffsets(binned, se.out=counts.local.tmm)
+counts.local.tmm <- normFactors(binned, se.out=counts.local.tmm)
 
 # method 4: csaw de novo peaks by local enrichment, csaw lowess-normalization
 counts.local.loess <- counts.local.filt
