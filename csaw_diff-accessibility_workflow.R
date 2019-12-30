@@ -1,57 +1,74 @@
-# in R
-# csaw workflow for ATAC differential-accessibility
-# April 2019
+# csaw workflow for ATAC-seq differential-accessibility analysis, in R
+# Jake Reske
+# Michigan State University, 2019
+# reskejak@msu.edu
+# https://github.com/reskejak
 
-# will describe methods for using 1) pre-defined peaks from MACS2 as well as 2) de novo csaw peak calling by local enrichment, 
+# will describe methods for using 1) pre-defined peaks from MACS2 as well as 2) csaw de novo enriched window calling by local enrichment, 
 # and normalization methods including 1) TMM on binned counts and 2) loess-based for trended biases
 
 # brief aside: use gc() to help clear memory after intensive commands if crashes/errors occur
 
+# example experimental design: two mouse ATAC-seq biological replicates for two conditions: treat and control 
+
+library(GenomicRanges)
+library(csaw)
+
 ########################################
+########################################
+########################################
+
 # starting from MACS2 filtered broadpeaks
 
-library("GenomicRanges")
-
-# read broadPeak files
+# read replicate broadPeak files
 treat1.peaks <- read.table("treat1_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
 treat2.peaks <- read.table("treat2_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
-treatn.peaks <- read.table("treatn_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
 control1.peaks <- read.table("control1_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
 control2.peaks <- read.table("control2_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
-controln.peaks <- read.table("controln_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
 colnames(treat1.peaks) <- c("chrom", "start", "end")
 colnames(treat2.peaks) <- c("chrom", "start", "end")
-colnames(treatn.peaks) <- c("chrom", "start", "end")
 colnames(control1.peaks) <- c("chrom", "start", "end")
 colnames(control2.peaks) <- c("chrom", "start", "end")
-colnames(controln.peaks) <- c("chrom", "start", "end")
+
+# read naive overlap broadsPeak files
+treat.overlap.peaks <- read.table("treat_overlap_peaks.filt.broadPeak", sep="\t")[,1:3]
+control.overlap.peaks <- read.table("control_overlap_peaks.filt.broadPeak", sep="\t")[,1:3]
+colnames(treat.overlap.peaks) <- c("chrom", "start", "end")
+colnames(control.overlap.peaks) <- c("chrom", "start", "end")
 
 # convert to GRanges objects
 treat1.peaks <- GRanges(treat1.peaks)
 treat2.peaks <- GRanges(treat2.peaks)
 treatn.peaks <- GRanges(treatn.peaks)
+treat.overlap.peaks <- GRanges(treat.overlap.peaks)
 control1.peaks <- GRanges(control1.peaks)
 control2.peaks <- GRanges(control2.peaks)
 controln.peaks <- GRanges(controln.peaks)
+control.overlap.peaks <- GRanges(control.overlap.peaks)
 
 # define consensus peakset
-# intersect between biological replicates; union between both experimental groups
-treat.peaks <- intersect(treat1.peaks, treat2.peaks, treatn.peaks)
-control.peaks <- intersect(control1.peaks, control2.peaks, controln.peaks)
+
+# one method: union of all replicate peak sets for both conditions
+treat.peaks <- union(treat1.peaks, treat2.peaks)
+control.peaks <- union(control1.peaks, control2.peaks)
 all.peaks <- union(treat.peaks, control.peaks)
 
-##############################
+# another method: intersect between biological replicates; union between both experimental conditions
+treat.peaks <- intersect(treat1.peaks, treat2.peaks)
+control.peaks <- intersect(control1.peaks, control2.peaks)
+all.peaks <- union(treat.peaks, control.peaks)
 
-library("csaw")
+# yet another method: union between naive overlapping peak sets
+all.peaks <- union(treat.overlap.peaks, control.overlap.peaks)
+
+##############################
 
 # specify paired-end BAMs
 treat1.pe.bam <- "treat1.sorted.noDups.filt.noMT.bam"
 treat2.pe.bam <- "treat2.sorted.noDups.filt.noMT.bam"
-treatn.pe.bam <- "treatn.sorted.noDups.filt.noMT.bam"
 control1.pe.bam <- "control1.sorted.noDups.filt.noMT.bam"
 control2.pe.bam <- "control2.sorted.noDups.filt.noMT.bam"
-controln.pe.bam <- "controln.sorted.noDups.filt.noMT.bam"
-pe.bams <- c(treat1.pe.bam, treat2.pe.bam, treatn.pe.bam, control1.pe.bam, control2.pe.bam, controln.pe.bam)
+pe.bams <- c(treat1.pe.bam, treat2.pe.bam, control1.pe.bam, control2.pe.bam)
 
 ##############################
 # read hg38 blacklist
@@ -60,26 +77,8 @@ blacklist <- GRanges(seqnames = blacklist$V1,
                      ranges = IRanges(start = blacklist$V2,
                                       end = blacklist$V3))
 # define read parameters
-standard.chr <- paste0("chr", c(1:22, "X")) # only use standard chromosomes (and no chrY)
+standard.chr <- paste0("chr", c(1:22, "X", "Y")) # only use standard chromosomes
 param <- readParam(max.frag=1000, pe="both", discard=blacklist, restrict=standard.chr)
-
-##############################
-# get fragment size distribution
-treat1.sizes <- getPESizes(treat1.pe.bam)
-treat2.sizes <- getPESizes(treat2.pe.bam)
-treatn.sizes <- getPESizes(treatn.pe.bam)
-control1.sizes <- getPESizes(control1.pe.bam)
-control2.sizes <- getPESizes(control2.pe.bam)
-controln.sizes <- getPESizes(controln.pe.bam)
-
-# estimate average fragment length by cross-correlation
-max.delay <- 1000 # due to 1 kb size-selection step
-treat1.corr <- correlateReads(treat1.pe.bam, max.delay, param=param)
-treat2.corr <- correlateReads(treat2.pe.bam, max.delay, param=param)
-treatn.corr <- correlateReads(treatn.pe.bam, max.delay, param=param)
-control1.corr <- correlateReads(control1.pe.bam, max.delay, param=param)
-control2.corr <- correlateReads(control2.pe.bam, max.delay, param=param)
-controln.corr <- correlateReads(controln.pe.bam, max.delay, param=param)
 
 ##############################
 # count reads in windows specified by MACS2                                      
@@ -94,8 +93,33 @@ peak.counts.filt <- peak.counts[keep.simple,]
 # result: few or no peaks should be removed; can modify as desired
 
 ##############################
-# count BAM reads into 300 bp windows
-counts <- windowCounts(pe.bams, width=300, param=param)
+
+# get paired-end fragment size distribution
+treat1.pe.sizes <- getPESizes(treat1.pe.bam)
+treat2.pe.sizes <- getPESizes(treat2.pe.bam)
+control1.pe.sizes <- getPESizes(control1.pe.bam)
+control2.pe.sizes <- getPESizes(control2.pe.bam)
+gc()
+# plot
+hist(treat1.pe.sizes$sizes)
+# etc.
+
+# estimate average fragment length by cross-correlation
+max.delay <- 1000
+treat1.corr <- correlateReads(treat1.pe.bam, max.delay, param=param)
+treat2.corr <- correlateReads(treat2.pe.bam, max.delay, param=param)
+control1.corr <- correlateReads(control1.pe.bam, max.delay, param=param)
+control2.corr <- correlateReads(control2.pe.bam, max.delay, param=param)
+gc()
+# plot
+plot(0:max.delay, treat1.corr, type="l", ylab="CCF", xlab="Delay (bp)")
+# etc.
+
+# for analysis with csaw de novo enriched query windows, select a window size that is greater than the majority of fragments
+
+##############################
+# count BAM reads into, e.g. 300 bp windows
+counts <- windowCounts(pe.bams, width=300, param=param) # set width as desired from the fragment length distribution analyses
 
 # filter uninteresting features (windows) by local enrichment
 # local background estimator: neighborhood
@@ -118,7 +142,7 @@ binned <- windowCounts(pe.bams, bin=TRUE, width=10000, param=param)
 peak.counts.tmm <- peak.counts.filt
 peak.counts.tmm <- normFactors(binned, se.out=peak.counts.tmm)
 
-# method 2: MACS2 peaks only, csaw lowess-normalization
+# method 2: MACS2 peaks only, csaw loess-normalization
 peak.counts.loess <- peak.counts.filt
 peak.counts.loess <- normOffsets(peak.counts.loess, type="loess", se.out=TRUE)
 # from vignette: "For type="loess", a numeric matrix of the same dimensions as counts, containing the log-based offsets for use in GLM fitting."
@@ -127,7 +151,7 @@ peak.counts.loess <- normOffsets(peak.counts.loess, type="loess", se.out=TRUE)
 counts.local.tmm <- counts.local.filt
 counts.local.tmm <- normFactors(binned, se.out=counts.local.tmm)
 
-# method 4: csaw de novo peaks by local enrichment, csaw lowess-normalization
+# method 4: csaw de novo peaks by local enrichment, csaw loess-normalization
 counts.local.loess <- counts.local.filt
 counts.local.loess <- normOffsets(counts.local.loess, type="loess", se.out=TRUE)
 # from vignette: "For type="loess", a numeric matrix of the same dimensions as counts, containing the log-based offsets for use in GLM fitting."
@@ -137,17 +161,17 @@ counts.local.loess <- normOffsets(counts.local.loess, type="loess", se.out=TRUE)
 
 # set working windows for the desired analysis
 working.windows <- peak.counts.tmm # MACS2 peaks only, standard TMM normalization based on binned counts
-# working.windows <- peak.counts.loess # MACS2 peaks only, for extreme cases with trended biases (due to global changes in accessibility)
+# working.windows <- peak.counts.loess # MACS2 peaks only, for trended biases
 # working.windows <- counts.local.tmm # csaw de novo peaks by local enrichment, standard TMM normalization based on binned counts
-# working.windows <- counts.local.loess # csaw de novo peaks by local enrichment, for extreme cases with trended biases (due to global changes in accessibility)
-# SEE THE MANUAL FOR MORE INFO ON NORMALIZATION METHODS
+# working.windows <- counts.local.loess # csaw de novo peaks by local enrichment, for trended biases
+# SEE THE CSAW MANUAL FOR MORE INFO ON NORMALIZATION METHODS
 ###########
 
 # setting up design matrix
 # see edgeR manual for more information
 y <- asDGEList(working.windows)
-colnames(y$counts) <- c("treat1", "treat2", "treatn", "control1", "control2", "controln")
-rownames(y$samples) <- c("treat1", "treat2", "treatn", "control1", "control2", "controln")
+colnames(y$counts) <- c("treat1", "treat2", "control1", "control2")
+rownames(y$samples) <- c("treat1", "treat2", "control1", "control2")
 y$samples$group <- c("treat", "treat", "control", "control")
 design <- model.matrix(~0+group, data=y$samples)
 colnames(design) <- c("treat", "control")
@@ -171,7 +195,7 @@ working.windows@rowRanges
 # max merged window width: 5000 bp
 merged.peaks <- mergeWindows(rowRanges(working.windows), tol=500L, max.width=5000L)
 # summary(width(merged.peaks$region))
-# result: merges about 300 peaks
+# should merge some peaks; change as desired
 
 # use most significant window as statistical representation for p-value and FDR for merged windows
 tab.best <- getBestTest(merged.peaks$id, results$table)
@@ -187,7 +211,5 @@ FDR.thresh <- 0.05 # set as desired
 final.merged.peaks.sig <- final.merged.peaks[final.merged.peaks@elementMetadata$FDR < FDR.thresh, ]
 final.merged.peaks.sig # significant differentially-accessible windows
 
-write.table(final.merged.peaks, "treat_vs_control_macs2_csaw_differential-windows_all.txt",
-            sep="\t", quote=F, col.names=T, row.names=F)
-write.table(final.merged.peaks.sig, "treat_vs_control_macs2_csaw_differential-windows_significant.txt",
-            sep="\t", quote=F, col.names=T, row.names=F)
+write.table(final.merged.peaks, "treat_vs_control_csaw_DA-windows_all.txt", sep="\t", quote=F, col.names=T, row.names=F)
+write.table(final.merged.peaks.sig, "treat_vs_control_csaw_DA-windows_significant.txt", sep="\t", quote=F, col.names=T, row.names=F)
