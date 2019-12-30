@@ -3,9 +3,8 @@
 ##########################
 
 # naiveOverlapBroad.sh
-# November 2019
 # Jake Reske
-# Michigan State University
+# Michigan State University, 2019
 # reskejak@msu.edu
 # https://github.com/reskejak
 
