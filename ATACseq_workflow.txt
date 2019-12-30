@@ -1,0 +1,251 @@
+# ATAC-seq workflow from reads to peaks, in Unix/R
+# Jake Reske
+# Michigan State University, 2019
+# reskejak@msu.edu
+# https://github.com/reskejak
+
+# Machine-readable version of Figure 4 workflow for ATAC-seq data analysis
+# beginning with raw, paired-end reads
+
+# example experimental design: two mouse ATAC-seq biological replicates for two conditions: treat and control 
+
+#######################################
+
+# Unix dependencies, in order of use:
+# FastQC
+# Trim Galore!
+# MultiQC
+# Bowtie2
+# samtools
+# Harvard ATAC-seq module (for removeChrom python script)
+# Picard (for MarkDuplicates tool)
+# bedtools
+# MACS2
+
+# R dependencies:
+# ATACseqQC (preseqR)
+
+# additional bash scripts used for custom functions:
+# bedpeTn5shift (https://raw.githubusercontent.com/reskejak/ATAC-seq/master/bedpeTn5shift.sh)
+# bedpeMinimalConvert (https://raw.githubusercontent.com/reskejak/ATAC-seq/master/bedpeMinimalConvert.sh)
+# naiveOverlapBroad (https://raw.githubusercontent.com/reskejak/ATAC-seq/master/naiveOverlapBroad.sh)
+
+########################################
+########################################
+########################################
+###	QUALITY CONTROL
+
+# in unix
+# Concatenate technical replicates between flowcells
+cat flowcell1/treat1_R1.fastq.gz flowcell2/treat1_R1.fastq.gz > cat/treat1_R1.fastq.gz # treat1_R1
+cat flowcell1/treat1_R2.fastq.gz flowcell2/treat1_R2.fastq.gz > cat/treat1_R2.fastq.gz # treat1_R2
+cat flowcell1/treat2_R1.fastq.gz flowcell2/treat2_R1.fastq.gz > cat/treat2_R1.fastq.gz # treat2_R1
+cat flowcell1/treat2_R2.fastq.gz flowcell2/treat2_R2.fastq.gz > cat/treat2_R2.fastq.gz # treat2_R2
+cat flowcell1/control1_R1.fastq.gz flowcell2/control1_R1.fastq.gz > cat/control1_R1.fastq.gz # control1_R1
+cat flowcell1/control1_R2.fastq.gz flowcell2/control1_R2.fastq.gz > cat/control1_R2.fastq.gz # control1_R2
+cat flowcell1/control2_R1.fastq.gz flowcell2/control2_R1.fastq.gz > cat/control2_R1.fastq.gz # control2_R1
+cat flowcell1/control2_R2.fastq.gz flowcell2/control2_R2.fastq.gz > cat/control2_R2.fastq.gz # control2_R2
+
+# QC raw reads
+fastqc treat1_R1.fastq.gz
+fastqc treat1_R2.fastq.gz
+fastqc treat2_R1.fastq.gz
+fastqc treat2_R2.fastq.gz
+fastqc control1_R1.fastq.gz
+fastqc control1_R2.fastq.gz
+fastqc control2_R1.fastq.gz
+fastqc control2_R2.fastq.gz
+
+# Trim reads
+trim_galore --paired -o trimmed/ treat1_R1.fastq.gz treat1_R2.fastq.gz
+trim_galore --paired -o trimmed/ treat2_R1.fastq.gz treat2_R2.fastq.gz
+trim_galore --paired -o trimmed/ control1_R1.fastq.gz control1_R2.fastq.gz
+trim_galore --paired -o trimmed/ control2_R1.fastq.gz control2_R2.fastq.gz
+# rename output files e.g. treat1_R1_trimmed.fq.gz or modify script
+
+# QC trimmed reads
+fastqc treat1_R1_trimmed.fq.gz
+fastqc treat1_R2_trimmed.fq.gz
+fastqc treat2_R1_trimmed.fq.gz
+fastqc treat2_R2_trimmed.fq.gz
+fastqc control1_R1_trimmed.fq.gz
+fastqc control1_R2_trimmed.fq.gz
+fastqc control2_R1_trimmed.fq.gz
+fastqc control2_R2_trimmed.fq.gz
+
+# Combine QC data
+python multiqc . # in the fastqc output directory; repeat for raw and trimmed
+
+########################################
+###	Align
+
+# Align to reference genome
+# first have to prepare genome index; see bowtie2 manual for details
+bowtie2 --very-sensitive -X 1000 -x mm10_bt2_index -1 treat1_R1_trimmed.fq.gz -2 treat1_R2_trimmed.fq.gz | samtools view -bS - > treat1.bam
+bowtie2 --very-sensitive -X 1000 -x mm10_bt2_index -1 treat2_R1_trimmed.fq.gz -2 treat2_R2_trimmed.fq.gz | samtools view -bS - > treat2.bam
+bowtie2 --very-sensitive -X 1000 -x mm10_bt2_index -1 control1_R1_trimmed.fq.gz -2 control1_R2_trimmed.fq.gz | samtools view -bS - > control1.bam
+bowtie2 --very-sensitive -X 1000 -x mm10_bt2_index -1 control2_R1_trimmed.fq.gz -2 control2_R2_trimmed.fq.gz | samtools view -bS - > control2.bam
+
+# Coordinate sort and index
+samtools sort -o treat1.sorted.bam treat1.bam; samtools index treat1.sorted.bam
+samtools sort -o treat2.sorted.bam treat2.bam; samtools index treat2.sorted.bam
+samtools sort -o control1.sorted.bam control1.bam; samtools index control1.sorted.bam
+samtools sort -o control2.sorted.bam control2.bam; samtools index control2.sorted.bam
+
+########################################
+###	Filter
+
+# Remove mtDNA reads
+# using Harvard ATAC-seq module (python script removeChrom.py)
+samtools view -h treat1.sorted.bam | python removeChrom.py - - chrM | samtools view -bh - > treat1.noMT.bam
+samtools view -h treat2.sorted.bam | python removeChrom.py - - chrM | samtools view -bh - > treat2.noMT.bam
+samtools view -h control1.sorted.bam | python removeChrom.py - - chrM | samtools view -bh - > control1.noMT.bam
+samtools view -h control2.sorted.bam | python removeChrom.py - - chrM | samtools view -bh - > control2.noMT.bam
+
+# Coordinate sort and index
+samtools sort -o treat1.sorted.noMT.bam treat1.noMT.bam; samtools index treat1.sorted.noMT.bam
+samtools sort -o treat2.sorted.noMT.bam treat2.noMT.bam; samtools index treat2.sorted.noMT.bam
+samtools sort -o control1.sorted.noMT.bam control1.noMT.bam; samtools index control1.sorted.noMT.bam
+samtools sort -o control2.sorted.noMT.bam control2.noMT.bam; samtools index control2.sorted.noMT.bam
+
+# Restrict to properly-paired reads only
+# -f 3 specifies only properly-paired reads
+samtools view -bh -f 3 treat1.sorted.noMT.bam > treat1.filt.noMT.bam
+samtools view -bh -f 3 treat2.sorted.noMT.bam > treat2.filt.noMT.bam
+samtools view -bh -f 3 control1.sorted.noMT.bam > control1.filt.noMT.bam
+samtools view -bh -f 3 control2.sorted.noMT.bam > control2.filt.noMT.bam
+
+# Coordinate sort and index
+samtools sort -o treat1.sorted.filt.noMT.bam treat1.filt.noMT.bam; samtools index treat1.sorted.filt.noMT.bam
+samtools sort -o treat2.sorted.filt.noMT.bam treat2.filt.noMT.bam; samtools index treat2.sorted.filt.noMT.bam
+samtools sort -o control1.sorted.filt.noMT.bam control1.filt.noMT.bam; samtools index control1.sorted.filt.noMT.bam
+samtools sort -o control2.sorted.filt.noMT.bam control2.filt.noMT.bam; samtools index control2.sorted.filt.noMT.bam
+
+########################################
+###	Complexity
+
+# in R
+library(ATACseqQC)
+
+# Define sample files
+treat1 <- "treat1.sorted.filt.noMT.bam"
+treat2 <- "treat2.sorted.filt.noMT.bam"
+control1 <- "control1.sorted.filt.noMT.bam"
+control2 <- "control2.sorted.filt.noMT.bam"
+treat1.bai <- "treat1.sorted.filt.noMT.bam.bai"
+treat2.bai <- "treat2.sorted.filt.noMT.bam.bai"
+control1.bai <- "control1.sorted.filt.noMT.bam.bai"
+control2.bai <- "control2.sorted.filt.noMT.bam.bai"
+
+# Calculate duplication frequency matrix
+treat1.dups <- readsDupFreq(treat1, index=treat1.bai)
+treat2.dups <- readsDupFreq(treat2, index=treat2.bai)
+control1.dups <- readsDupFreq(control1, index=control1.bai)
+control2.dups <- readsDupFreq(control2, index=control2.bai)
+
+# Estimate library complexity
+treat1.complexity <- estimateLibComplexity(treat1.dups, times=100, interpolate.sample.sizes=seq(0.1, 1, by=0.01)
+treat2.complexity <- estimateLibComplexity(treat2.dups, times=100, interpolate.sample.sizes=seq(0.1, 1, by=0.01)
+control1.complexity <- estimateLibComplexity(control1.dups, times=100, interpolate.sample.sizes=seq(0.1, 1, by=0.01)
+control2.complexity <- estimateLibComplexity(control2.dups, times=100, interpolate.sample.sizes=seq(0.1, 1, by=0.01)
+
+# notes on interpretation:
+# $relative.size = relative library size, i.e. =1 is the full library size supplied
+# $values = number of unique fragments sequenced at a given $relative.size
+
+# downstream:
+# from all libaries in experiment, identify lowest $values integer at $relative.size==1
+# estimate fraction of library to subsample to achieve uniform number of unique fragments (molecular complexity)
+
+# back in unix
+# Subsample based on library complexity estimates
+# dummy example
+samtools view -h -b -s 1.45 treat1.sorted.filt.noMT.bam > treat1_sub.filt.noMT.bam # -s 1.45 indicates 45% subsample, seed=1
+samtools view -h -b -s 1.78 treat2.sorted.filt.noMT.bam > treat2_sub.filt.noMT.bam # -s 1.78 indicates 78% subsample, seed=1
+# do not subsample control1
+samtools view -h -b -s 1.91 control2.sorted.filt.noMT.bam > control2_sub.filt.noMT.bam # -s 1.91 indicates 91% subsample, seed=1
+
+samtools sort -o treat1_sub.sorted.filt.noMT.bam treat1_sub.filt.noMT.bam; samtools index treat1_sub.sorted.filt.noMT.bam
+samtools sort -o treat2_sub.sorted.filt.noMT.bam treat2_sub.filt.noMT.bam; samtools index treat2_sub.sorted.filt.noMT.bam
+# no need to sort/index control1 again; did not subsample
+samtools sort -o control2_sub.sorted.filt.noMT.bam control2_sub.filt.noMT.bam; samtools index control2_sub.sorted.filt.noMT.bam
+
+# will proceed forward with the subsampled BAMs
+
+########################################
+###	Filter
+
+# Remove PCR duplicates
+java -jar picard.jar MarkDuplicates I=treat1_sub.sorted.filt.noMT.bam O=treat1_sub.noDups.filt.noMT.bam M=treat1_sub_dups.txt REMOVE_DUPLICATES=true
+java -jar picard.jar MarkDuplicates I=treat2_sub.sorted.filt.noMT.bam O=treat2_sub.noDups.filt.noMT.bam M=treat2_sub_dups.txt REMOVE_DUPLICATES=true
+java -jar picard.jar MarkDuplicates I=control1.sorted.filt.noMT.bam O=control1.noDups.filt.noMT.bam M=control1_dups.txt REMOVE_DUPLICATES=true
+java -jar picard.jar MarkDuplicates I=control2_sub.sorted.filt.noMT.bam O=control2_sub.noDups.filt.noMT.bam M=control2_sub_dups.txt REMOVE_DUPLICATES=true
+
+# Coordinate sort and index
+samtools sort -o treat1_sub.sorted.noDups.filt.noMT.bam treat1_sub.noDups.filt.noMT.bam; samtools index treat1_sub.sorted.noDups.filt.noMT.bam
+samtools sort -o treat2_sub.sorted.noDups.filt.noMT.bam treat2_sub.noDups.filt.noMT.bam; samtools index treat2_sub.sorted.noDups.filt.noMT.bam
+samtools sort -o control1.sorted.noDups.filt.noMT.bam control1.noDups.filt.noMT.bam; samtools index control1.sorted.noDups.filt.noMT.bam
+samtools sort -o control2_sub.sorted.noDups.filt.noMT.bam control2_sub.noDups.filt.noMT.bam; samtools index control2_sub.sorted.noDups.filt.noMT.bam
+
+########################################
+###	Format
+
+# Sort by read name
+samtools sort -n -o treat1_sub.namesorted.noDups.filt.noMT.bam treat1_sub.sorted.noDups.filt.noMT.bam
+samtools sort -n -o treat2_sub.namesorted.noDups.filt.noMT.bam treat2_sub.sorted.noDups.filt.noMT.bam
+samtools sort -n -o control1.namesorted.noDups.filt.noMT.bam control1.sorted.noDups.filt.noMT.bam
+samtools sort -n -o control2_sub.namesorted.noDups.filt.noMT.bam control2_sub.sorted.noDups.filt.noMT.bam
+
+# Fix read mates
+samtools fixmate treat1_sub.namesorted.noDups.filt.noMT.bam treat1_sub.fixed.bam
+samtools fixmate treat2_sub.namesorted.noDups.filt.noMT.bam treat2_sub.fixed.bam
+samtools fixmate control1.namesorted.noDups.filt.noMT.bam control1.fixed.bam
+samtools fixmate control2_sub.namesorted.noDups.filt.noMT.bam control2_sub.fixed.bam
+
+# BEDPE conversion
+samtools view -bf 0x2 treat1_sub.fixed.bam | bedtools bamtobed -i stdin -bedpe > treat1_sub.fixed.bedpe
+samtools view -bf 0x2 treat2_sub.fixed.bam | bedtools bamtobed -i stdin -bedpe > treat2_sub.fixed.bedpe
+samtools view -bf 0x2 control1.fixed.bam | bedtools bamtobed -i stdin -bedpe > control1.fixed.bedpe
+samtools view -bf 0x2 control2_sub.fixed.bam | bedtools bamtobed -i stdin -bedpe > control2_sub.fixed.bedpe
+
+# Tn5 shift
+bash bedpeTn5shift.sh treat1_sub.fixed.bedpe > treat1_sub.tn5.bedpe
+bash bedpeTn5shift.sh treat2_sub.fixed.bedpe > treat2_sub.tn5.bedpe
+bash bedpeTn5shift.sh control1.fixed.bedpe > control1.tn5.bedpe
+bash bedpeTn5shift.sh control2_sub.fixed.bedpe > control2_sub.tn5.bedpe
+
+# Minimal conversion (from standard BEDPE format to that accepted by MACS2)
+bash bedpeMinimalConvert.sh treat1_sub.tn5.bedpe > treat1_sub.minimal.bedpe
+bash bedpeMinimalConvert.sh treat2_sub.tn5.bedpe > treat2_sub.minimal.bedpe
+bash bedpeMinimalConvert.sh control1.tn5.bedpe > control1.minimal.bedpe
+bash bedpeMinimalConvert.sh control2_sub.tn5.bedpe > control2_sub.minimal.bedpe
+
+########################################
+###	Peak calling
+
+# Call significant broad peaks (FDR < 0.05) on each individual replicate
+macs2 callpeak -t treat1_sub.minimal.bedpe -f BEDPE -n treat1 -g mm --broad --broad-cutoff 0.05 --keep-dup all
+macs2 callpeak -t treat2_sub.minimal.bedpe -f BEDPE -n treat2 -g mm --broad --broad-cutoff 0.05 --keep-dup all
+macs2 callpeak -t control1.minimal.bedpe -f BEDPE -n control1 -g mm --broad --broad-cutoff 0.05 --keep-dup all
+macs2 callpeak -t control2_sub.minimal.bedpe -f BEDPE -n control2 -g mm --broad --broad-cutoff 0.05 --keep-dup all
+# for simplicity, ommitted the "_sub" suffix to MACS2 output here
+
+# Filter blacklist regions and non-standard chromosomes
+bedtools intersect -v -a treat1_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > treat1_peaks.filt.broadPeak
+bedtools intersect -v -a treat2_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > treat2_peaks.filt.broadPeak
+bedtools intersect -v -a control1_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > control1_peaks.filt.broadPeak
+bedtools intersect -v -a control2_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > control2_peaks.filt.broadPeak
+
+########################################
+# Compute ENCODE naive overlap
+# Definition from Kundaje et al.: "Find pooled peaks that overlap Rep1 and Rep2 where overlap is defined as the fractional overlap wrt any one of the overlapping peak pairs >= 0.5".
+
+# Call MACS2 broad peaks on pooled replicates and filter blacklist regions
+macs2 callpeak -t treat1.minimal.bedpe treat2.minimal.bedpe -f BEDPE -n treat_pool -g mm --broad --broad-cutoff 0.05 --keep-dup all
+macs2 callpeak -t control1.minimal.bedpe control2.minimal.bedpe -f BEDPE -n control_pool -g mm --broad --broad-cutoff 0.05 --keep-dup all
+bedtools intersect -v -a treat_pool_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > treat_pool_peaks.filt.broadPeak
+bedtools intersect -v -a control_pool_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > control_pool_peaks.filt.broadPeak
+
+# Compute ENCODE naive overlap
+bash naiveOverlapBroad.sh treat1_peaks.filt.broadPeak treat2_peaks.filt.broadPeak treat_pool_peaks.filt.broadPeak > treat_overlap_peaks.filt.broadPeak
+bash naiveOverlapBroad.sh control1_peaks.filt.broadPeak control2_peaks.filt.broadPeak control_pool_peaks.filt.broadPeak > control_overlap_peaks.filt.broadPeak
