@@ -4,6 +4,7 @@
 # reskejak@msu.edu
 # https://github.com/reskejak
 
+# Machine-readable version of Figure 6 workflow for ATAC-seq DA analysis with csaw
 # will describe methods for using 1) pre-defined peaks from MACS2 as well as 2) csaw de novo enriched window calling by local enrichment, 
 # and normalization methods including 1) TMM on binned counts and 2) loess-based for trended biases
 
