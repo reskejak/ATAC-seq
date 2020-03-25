@@ -1,13 +1,13 @@
 # ATAC-seq workflow from reads to peaks, in Unix/R
 # Jake Reske
-# Michigan State University, 2019
+# Michigan State University, 2020
 # reskejak@msu.edu
 # https://github.com/reskejak
 
 # Machine-readable version of Figure 4 workflow for ATAC-seq data analysis
-# beginning with raw, paired-end reads
+# beginning with raw, paired-end Illumina reads
 
-# example experimental design: two mouse ATAC-seq biological replicates for two conditions: treat and control 
+# example experimental design: n=2 mouse ATAC-seq biological replicates for two conditions: treat and control 
 
 #######################################
 
@@ -25,7 +25,7 @@
 # R dependencies:
 # ATACseqQC (preseqR)
 
-# additional bash scripts used for custom functions:
+# additional unix bash scripts used for custom functions:
 # bedpeTn5shift (https://raw.githubusercontent.com/reskejak/ATAC-seq/master/bedpeTn5shift.sh)
 # bedpeMinimalConvert (https://raw.githubusercontent.com/reskejak/ATAC-seq/master/bedpeMinimalConvert.sh)
 # naiveOverlapBroad (https://raw.githubusercontent.com/reskejak/ATAC-seq/master/naiveOverlapBroad.sh)
@@ -162,7 +162,7 @@ control2.complexity <- estimateLibComplexity(control2.dups, times=100, interpola
 # dummy example
 samtools view -h -b -s 1.45 treat1.sorted.filt.noMT.bam > treat1_sub.filt.noMT.bam # -s 1.45 indicates 45% subsample, seed=1
 samtools view -h -b -s 1.78 treat2.sorted.filt.noMT.bam > treat2_sub.filt.noMT.bam # -s 1.78 indicates 78% subsample, seed=1
-# do not subsample control1
+# do not subsample control1; e.g. sample with lowest complexity at given read depth
 samtools view -h -b -s 1.91 control2.sorted.filt.noMT.bam > control2_sub.filt.noMT.bam # -s 1.91 indicates 91% subsample, seed=1
 
 samtools sort -o treat1_sub.sorted.filt.noMT.bam treat1_sub.filt.noMT.bam; samtools index treat1_sub.sorted.filt.noMT.bam
@@ -228,17 +228,20 @@ macs2 callpeak -t treat1_sub.minimal.bedpe -f BEDPE -n treat1 -g mm --broad --br
 macs2 callpeak -t treat2_sub.minimal.bedpe -f BEDPE -n treat2 -g mm --broad --broad-cutoff 0.05 --keep-dup all
 macs2 callpeak -t control1.minimal.bedpe -f BEDPE -n control1 -g mm --broad --broad-cutoff 0.05 --keep-dup all
 macs2 callpeak -t control2_sub.minimal.bedpe -f BEDPE -n control2 -g mm --broad --broad-cutoff 0.05 --keep-dup all
-# for simplicity, ommitted the "_sub" suffix to MACS2 output here
+# -g mm refers to Mus musculus genome size; use -g hs for Homo sapiens, or see MACS2 manual for manually setting genome size e.g. for other organisms
+# for simplicity, the "_sub" suffix was omitted to MACS2 output here
 
-# Filter blacklist regions and non-standard chromosomes
+# Filter ENCODE-defined blacklist regions and unplaced contigs
+# Blacklist regions refer to highly repetitive/unstructured regions with artificially high signal in genomic experiments. Available for certain model organisms. See publication for details. https://github.com/Boyle-Lab/Blacklist/
+# Amemiya, H.M., Kundaje, A. & Boyle, A.P. The ENCODE Blacklist: Identification of Problematic Regions of the Genome. Sci Rep 9, 9354 (2019). (PMID: 31249361)
 bedtools intersect -v -a treat1_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > treat1_peaks.filt.broadPeak
 bedtools intersect -v -a treat2_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > treat2_peaks.filt.broadPeak
 bedtools intersect -v -a control1_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > control1_peaks.filt.broadPeak
 bedtools intersect -v -a control2_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > control2_peaks.filt.broadPeak
 
 ########################################
-# Compute ENCODE naive overlap
-# Definition from Kundaje et al.: "Find pooled peaks that overlap Rep1 and Rep2 where overlap is defined as the fractional overlap wrt any one of the overlapping peak pairs >= 0.5".
+# Compute naive overlap
+# Definition from ENCODE / Kundaje et al.: "Find pooled peaks that overlap Rep1 and Rep2 where overlap is defined as the fractional overlap wrt any one of the overlapping peak pairs >= 0.5".
 
 # Call MACS2 broad peaks on pooled replicates and filter blacklist regions
 macs2 callpeak -t treat1.minimal.bedpe treat2.minimal.bedpe -f BEDPE -n treat_pool -g mm --broad --broad-cutoff 0.05 --keep-dup all
@@ -246,6 +249,6 @@ macs2 callpeak -t control1.minimal.bedpe control2.minimal.bedpe -f BEDPE -n cont
 bedtools intersect -v -a treat_pool_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > treat_pool_peaks.filt.broadPeak
 bedtools intersect -v -a control_pool_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > control_pool_peaks.filt.broadPeak
 
-# Compute ENCODE naive overlap
+# Compute naive overlap
 bash naiveOverlapBroad.sh treat1_peaks.filt.broadPeak treat2_peaks.filt.broadPeak treat_pool_peaks.filt.broadPeak > treat_overlap_peaks.filt.broadPeak
 bash naiveOverlapBroad.sh control1_peaks.filt.broadPeak control2_peaks.filt.broadPeak control_pool_peaks.filt.broadPeak > control_overlap_peaks.filt.broadPeak
