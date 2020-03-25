@@ -1,6 +1,6 @@
-# csaw workflow for ATAC-seq differential-accessibility analysis, in R
+# csaw workflow for ATAC-seq differential accessibility analysis, in R
 # Jake Reske
-# Michigan State University, 2019
+# Michigan State University, 2020
 # reskejak@msu.edu
 # https://github.com/reskejak
 
@@ -9,7 +9,7 @@
 
 # brief aside: use gc() to help clear memory after intensive commands if crashes/errors occur
 
-# example experimental design: two mouse ATAC-seq biological replicates for two conditions: treat and control 
+# example experimental design: n=2 mouse ATAC-seq biological replicates for two conditions: treat and control 
 
 library(GenomicRanges)
 library(csaw)
@@ -30,7 +30,7 @@ colnames(treat2.peaks) <- c("chrom", "start", "end")
 colnames(control1.peaks) <- c("chrom", "start", "end")
 colnames(control2.peaks) <- c("chrom", "start", "end")
 
-# read naive overlap broadsPeak files
+# read naive overlap broadPeak files
 treat.overlap.peaks <- read.table("treat_overlap_peaks.filt.broadPeak", sep="\t")[,1:3]
 control.overlap.peaks <- read.table("control_overlap_peaks.filt.broadPeak", sep="\t")[,1:3]
 colnames(treat.overlap.peaks) <- c("chrom", "start", "end")
@@ -64,20 +64,17 @@ all.peaks <- union(treat.overlap.peaks, control.overlap.peaks)
 ##############################
 
 # specify paired-end BAMs
-treat1.pe.bam <- "treat1.sorted.noDups.filt.noMT.bam"
-treat2.pe.bam <- "treat2.sorted.noDups.filt.noMT.bam"
-control1.pe.bam <- "control1.sorted.noDups.filt.noMT.bam"
-control2.pe.bam <- "control2.sorted.noDups.filt.noMT.bam"
-pe.bams <- c(treat1.pe.bam, treat2.pe.bam, control1.pe.bam, control2.pe.bam)
+pe.bams <- c("control1.sorted.noDups.filt.noMT.bam", "control2.sorted.noDups.filt.noMT.bam",
+		     "treat1.sorted.noDups.filt.noMT.bam", "treat2.sorted.noDups.filt.noMT.bam")
 
 ##############################
-# read hg38 blacklist
-blacklist <- read.table("~/ref_genome/hg38.blacklist.bed", sep="\t")
-blacklist <- GRanges(seqnames = blacklist$V1,
-                     ranges = IRanges(start = blacklist$V2,
-                                      end = blacklist$V3))
+# read mm10 blacklist
+blacklist <- read.table("~/ref_genome/mm10.blacklist.bed", sep="\t")
+colnames(blacklist) <- c("chrom", "start", "end")
+blacklist <- GRanges(blacklist)
+
 # define read parameters
-standard.chr <- paste0("chr", c(1:22, "X", "Y")) # only use standard chromosomes
+standard.chr <- paste0("chr", c(1:19, "X", "Y")) # only use standard chromosomes
 param <- readParam(max.frag=1000, pe="both", discard=blacklist, restrict=standard.chr)
 
 ##############################
@@ -87,49 +84,33 @@ peak.counts <- regionCounts(pe.bams, all.peaks, param=param)
 ##############################
 # MACS2 peaks only: filter low abundance peaks
 library("edgeR")
-peak.abundances <- aveLogCPM(asDGEList(peak.counts))
-keep.simple <- peak.abundances > -3 # only use peaks logCPM > -3
-peak.counts.filt <- peak.counts[keep.simple,]
-# result: few or no peaks should be removed; can modify as desired
+peak.abundances <- aveLogCPM(asDGEList(peak.counts)) 
+peak.counts.filt <- peak.counts[peak.abundances > -3, ] # only use peaks logCPM > -3
+# few or no peaks should be removed; modify as desired
 
 ##############################
 
 # get paired-end fragment size distribution
-treat1.pe.sizes <- getPESizes(treat1.pe.bam)
-treat2.pe.sizes <- getPESizes(treat2.pe.bam)
 control1.pe.sizes <- getPESizes(control1.pe.bam)
 control2.pe.sizes <- getPESizes(control2.pe.bam)
+treat1.pe.sizes <- getPESizes(treat1.pe.bam)
+treat2.pe.sizes <- getPESizes(treat2.pe.bam)
 gc()
 # plot
-hist(treat1.pe.sizes$sizes)
-# etc.
-
-# estimate average fragment length by cross-correlation
-max.delay <- 1000
-treat1.corr <- correlateReads(treat1.pe.bam, max.delay, param=param)
-treat2.corr <- correlateReads(treat2.pe.bam, max.delay, param=param)
-control1.corr <- correlateReads(control1.pe.bam, max.delay, param=param)
-control2.corr <- correlateReads(control2.pe.bam, max.delay, param=param)
-gc()
-# plot
-plot(0:max.delay, treat1.corr, type="l", ylab="CCF", xlab="Delay (bp)")
-# etc.
+hist(treat1.pe.sizes$sizes) # repeat for all replicates and conditions
 
 # for analysis with csaw de novo enriched query windows, select a window size that is greater than the majority of fragments
 
 ##############################
-# count BAM reads into, e.g. 300 bp windows
+# count BAM reads in, e.g. 300 bp windows
 counts <- windowCounts(pe.bams, width=300, param=param) # set width as desired from the fragment length distribution analyses
 
 # filter uninteresting features (windows) by local enrichment
-# local background estimator: neighborhood
-surrounds <- 2000
-neighbor <- suppressWarnings(resize(rowRanges(counts), surrounds, fix="center"))
-wider <- regionCounts(pe.bams, regions=neighbor, param=param)
-
-filter.stat <- filterWindows(counts, wider, type="local")
-keep.local <- filter.stat$filter > log2(3) # threshold of 3-fold increase in enrichment over neighborhood abundance; change as desired
-counts.local.filt <- counts[keep.local,]
+# local background estimator: 2kb neighborhood
+neighbor <- suppressWarnings(resize(rowRanges(counts), width=2000, fix="center")) # change width parameter as desired
+wider <- regionCounts(pe.bams, regions=neighbor, param=param) # count reads in neighborhoods
+filter.stat <- filterWindows(counts, wider, type="local") 
+counts.local.filt <- counts[filter.stat$filter > log2(3),] # threshold of 3-fold increase in enrichment over 2kb neighborhood abundance; change as desired
 
 ###############################
 # count BAM background bins (for TMM normalization)
@@ -167,26 +148,25 @@ working.windows <- peak.counts.tmm # MACS2 peaks only, standard TMM normalizatio
 # SEE THE CSAW MANUAL FOR MORE INFO ON NORMALIZATION METHODS
 ###########
 
-# setting up design matrix
+# setup design matrix
 # see edgeR manual for more information
 y <- asDGEList(working.windows)
-colnames(y$counts) <- c("treat1", "treat2", "control1", "control2")
-rownames(y$samples) <- c("treat1", "treat2", "control1", "control2")
-y$samples$group <- c("treat", "treat", "control", "control")
+colnames(y$counts) <- c("control1", "control2", "treat1", "treat2")
+rownames(y$samples) <- c("control1", "control2", "treat1", "treat2")
+y$samples$group <- c("control", "control", "treat", "treat")
 design <- model.matrix(~0+group, data=y$samples)
 colnames(design) <- c("treat", "control")
 # design
 
-# stabilise estimates with empirical bayes
+# stabilize dispersion estimates with empirical bayes
 y <- estimateDisp(y, design)
 fit <- glmQLFit(y, design, robust=TRUE)
 
 # testing for differentially-accessible windows
-contrast <- makeContrasts(treat-control, levels=design)
-results <- glmQLFTest(fit, contrast=contrast)
+results <- glmQLFTest(fit, contrast=makeContrasts(treat-control, levels=design))
 # head(results$table)
 
-# combine GRanges rowdata with DE statistics
+# combine GRanges rowdata with DA statistics
 rowData(working.windows) <- cbind(rowData(working.windows), results$table)
 working.windows@rowRanges
 
@@ -213,3 +193,17 @@ final.merged.peaks.sig # significant differentially-accessible windows
 
 write.table(final.merged.peaks, "treat_vs_control_csaw_DA-windows_all.txt", sep="\t", quote=F, col.names=T, row.names=F)
 write.table(final.merged.peaks.sig, "treat_vs_control_csaw_DA-windows_significant.txt", sep="\t", quote=F, col.names=T, row.names=F)
+
+###########################################
+
+# Generate MA plot
+library(ggplot2)
+
+final.merged.peaks$sig <- "n.s."
+final.merged.peaks$sig[final.merged.peaks$FDR < FDR.thresh] <- "significant"
+
+ggplot(data=data.frame(final.merged.peaks),
+       aes(x = logCPM, y = logFC, col = factor(sig, levels=c("n.s.", "significant")))) + 
+  geom_point() + scale_color_manual(values = c("black", "red")) + 
+  geom_smooth(inherit.aes=F, aes(x = logCPM, y = logFC), method = "loess") + # smoothed loess fit; can add span=0.5 to reduce computation load/time
+  geom_hline(yintercept = 0) + labs(col = NULL)
