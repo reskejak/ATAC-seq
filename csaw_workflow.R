@@ -1,3 +1,5 @@
+# csaw_workflow.R
+
 # csaw workflow for ATAC-seq differential accessibility analysis, in R
 # Jake Reske
 # Michigan State University, 2020
@@ -139,7 +141,7 @@ counts.local.loess <- normOffsets(counts.local.loess, type="loess", se.out=TRUE)
 # from vignette: "For type="loess", a numeric matrix of the same dimensions as counts, containing the log-based offsets for use in GLM fitting."
 
 #########################################
-# DIFFERENTIAL-ACCESSIBILITY ANALYSIS
+# DIFFERENTIAL ACCESSIBILITY ANALYSIS
 
 # set working windows for the desired analysis
 working.windows <- peak.counts.tmm # MACS2 peaks only, standard TMM normalization based on binned counts
