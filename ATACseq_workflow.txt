@@ -1,3 +1,5 @@
+# ATACseq_workflow.txt
+
 # ATAC-seq workflow from reads to peaks, in Unix/R
 # Jake Reske
 # Michigan State University, 2020
