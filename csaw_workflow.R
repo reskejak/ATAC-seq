@@ -24,10 +24,10 @@ library(csaw)
 # starting from MACS2 filtered broadpeaks
 
 # read replicate broadPeak files
-treat1.peaks <- read.table("treat1_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
-treat2.peaks <- read.table("treat2_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
-control1.peaks <- read.table("control1_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
-control2.peaks <- read.table("control2_broad_peaks.filt.broadPeak", sep="\t")[,1:3]
+treat1.peaks <- read.table("treat1_peaks.filt.broadPeak", sep="\t")[,1:3]
+treat2.peaks <- read.table("treat2_peaks.filt.broadPeak", sep="\t")[,1:3]
+control1.peaks <- read.table("control1_peaks.filt.broadPeak", sep="\t")[,1:3]
+control2.peaks <- read.table("control2_peaks.filt.broadPeak", sep="\t")[,1:3]
 colnames(treat1.peaks) <- c("chrom", "start", "end")
 colnames(treat2.peaks) <- c("chrom", "start", "end")
 colnames(control1.peaks) <- c("chrom", "start", "end")
