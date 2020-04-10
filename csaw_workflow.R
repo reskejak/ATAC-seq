@@ -65,7 +65,6 @@ all.peaks <- union(treat.peaks, control.peaks)
 all.peaks <- union(treat.overlap.peaks, control.overlap.peaks)
 
 ##############################
-
 # specify paired-end BAMs
 pe.bams <- c("control1.sorted.noDups.filt.noMT.bam", "control2.sorted.noDups.filt.noMT.bam",
 	     "treat1.sorted.noDups.filt.noMT.bam", "treat2.sorted.noDups.filt.noMT.bam")
