@@ -4,6 +4,6 @@ These scripts correspond to a (differential) ATAC-seq analysis workflow as descr
 
 If you use this methodology, please cite the following paper along with corresponding pipeline dependencies:
 
-Jake J. Reske, Mike R. Wilson, and Ronald L. Chandler. 2020. ATAC-seq normalization method can significantly affect differential accessibility analysis and interpretation. Epigenetics & Chromatin 13: 22.
+Jake J. Reske, Mike R. Wilson, and Ronald L. Chandler. 2020. ATAC-seq normalization method can significantly affect differential accessibility analysis and interpretation. *Epigenetics & Chromatin* **13**: 22.
 
 Attempt to run each command individually or in blocks after editing to match your own data architecture.
