@@ -99,6 +99,7 @@ samtools sort -o control2.sorted.bam control2.bam; samtools index control2.sorte
 
 # Remove mtDNA reads
 # using Harvard ATAC-seq module (python script removeChrom.py)
+# https://github.com/harvardinformatics/ATAC-seq
 samtools view -h treat1.sorted.bam | python removeChrom.py - - chrM | samtools view -bh - > treat1.noMT.bam
 samtools view -h treat2.sorted.bam | python removeChrom.py - - chrM | samtools view -bh - > treat2.noMT.bam
 samtools view -h control1.sorted.bam | python removeChrom.py - - chrM | samtools view -bh - > control1.noMT.bam
