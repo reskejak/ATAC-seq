@@ -93,10 +93,10 @@ peak.counts.filt <- peak.counts[peak.abundances > -3, ] # only use peaks logCPM 
 ##############################
 
 # get paired-end fragment size distribution
-control1.pe.sizes <- getPESizes(control1.pe.bam)
-control2.pe.sizes <- getPESizes(control2.pe.bam)
-treat1.pe.sizes <- getPESizes(treat1.pe.bam)
-treat2.pe.sizes <- getPESizes(treat2.pe.bam)
+control1.pe.sizes <- getPESizes("control1.sorted.noDups.filt.noMT.bam")
+control2.pe.sizes <- getPESizes("control2.sorted.noDups.filt.noMT.bam")
+treat1.pe.sizes <- getPESizes("treat1.sorted.noDups.filt.noMT.bam")
+treat2.pe.sizes <- getPESizes("treat2.sorted.noDups.filt.noMT.bam")
 gc()
 # plot
 hist(treat1.pe.sizes$sizes) # repeat for all replicates and conditions
