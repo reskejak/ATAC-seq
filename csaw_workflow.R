@@ -129,6 +129,8 @@ peak.counts.tmm <- normFactors(binned, se.out=peak.counts.tmm)
 # method 2: MACS2 peaks only, csaw loess-normalization
 peak.counts.loess <- peak.counts.filt
 peak.counts.loess <- normOffsets(peak.counts.loess, type="loess", se.out=TRUE)
+# type="loess" may be deprecated and unnecessary in new csaw versions, i.e. normOffsets() defaults to loess.
+# peak.counts.loess <- normOffsets(peak.counts.loess, se.out=TRUE) # try this instead if receiving an error
 # from vignette: "For type="loess", a numeric matrix of the same dimensions as counts, containing the log-based offsets for use in GLM fitting."
 
 # method 3: csaw de novo peaks by local enrichment, TMM normalization based on binned counts
