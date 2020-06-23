@@ -111,7 +111,8 @@ counts <- windowCounts(pe.bams, width=300, param=param) # set width as desired f
 # local background estimator: 2kb neighborhood
 neighbor <- suppressWarnings(resize(rowRanges(counts), width=2000, fix="center")) # change width parameter as desired
 wider <- regionCounts(pe.bams, regions=neighbor, param=param) # count reads in neighborhoods
-filter.stat <- filterWindows(counts, wider, type="local") 
+# filter.stat <- filterWindows(counts, wider, type="local") # the filterWindows() function is deprecated and has been replaced by filterWindowsLocal(). This is an archived step.
+filter.stat <- filterWindowsLocal(counts, wider)
 counts.local.filt <- counts[filter.stat$filter > log2(3),] # threshold of 3-fold increase in enrichment over 2kb neighborhood abundance; change as desired
 
 ###############################
