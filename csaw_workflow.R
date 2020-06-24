@@ -128,9 +128,7 @@ peak.counts.tmm <- normFactors(binned, se.out=peak.counts.tmm)
 
 # method 2: MACS2 peaks only, csaw loess-normalization
 peak.counts.loess <- peak.counts.filt
-peak.counts.loess <- normOffsets(peak.counts.loess, type="loess", se.out=TRUE)
-# type="loess" may be deprecated and unnecessary in new csaw versions, i.e. normOffsets() defaults to loess.
-# peak.counts.loess <- normOffsets(peak.counts.loess, se.out=TRUE) # try this instead if receiving an error
+peak.counts.loess <- normOffsets(peak.counts.loess, se.out=TRUE) # type="loess" is now default
 # from vignette: "For type="loess", a numeric matrix of the same dimensions as counts, containing the log-based offsets for use in GLM fitting."
 
 # method 3: csaw de novo peaks by local enrichment, TMM normalization based on binned counts
@@ -170,27 +168,25 @@ fit <- glmQLFit(y, design, robust=TRUE)
 # testing for differentially-accessible windows
 results <- glmQLFTest(fit, contrast=makeContrasts(treat-control, levels=design))
 # head(results$table)
-
-# combine GRanges rowdata with DA statistics
-rowData(working.windows) <- cbind(rowData(working.windows), results$table)
-working.windows@rowRanges
-
+rowData(working.windows) <- cbind(rowData(working.windows), results$table) # combine GRanges rowdata with differential statistics
+# working.windows@rowRanges
+ 
 # merge nearby windows
-# up to "tol" distance apart: 500 bp in this case
-# max merged window width: 5000 bp
+# up to "tol" distance apart: 500 bp in this case; max merged window width: 5000 bp
 merged.peaks <- mergeWindows(rowRanges(working.windows), tol=500L, max.width=5000L)
 # summary(width(merged.peaks$region))
 # should merge some peaks; change as desired
 
 # use most significant window as statistical representation for p-value and FDR for merged windows
 tab.best <- getBestTest(merged.peaks$id, results$table)
-head(tab.best)
-# combine merged peaks window range with statistics
-final.merged.peaks <- merged.peaks$region
-final.merged.peaks@elementMetadata <- cbind(final.merged.peaks@elementMetadata, tab.best[,-1])
-final.merged.peaks <- final.merged.peaks[order(final.merged.peaks@elementMetadata$FDR), ] # sort by FDR
-final.merged.peaks # all windows
-
+ 
+# concatenating all relevant statistical data for final merged windows (no redundant columns)
+final.merged.peaks <- GRanges(cbind(merged.peaks$region, results$table[tab.best$rep.test, -4], tab.best[,-c(7:8)]))
+ 
+# sort by FDR
+final.merged.peaks <- final.merged.peaks[order(final.merged.peaks@elementMetadata$FDR), ]
+final.merged.peaks
+ 
 # filter by FDR threshold
 FDR.thresh <- 0.05 # set as desired
 final.merged.peaks.sig <- final.merged.peaks[final.merged.peaks@elementMetadata$FDR < FDR.thresh, ]
