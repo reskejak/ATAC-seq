@@ -14,6 +14,6 @@ Attempt to run each command individually or in blocks after editing to match you
 ![foo](https://media.springernature.com/full/springer-static/image/art%3A10.1186%2Fs13072-020-00342-y/MediaObjects/13072_2020_342_Fig4_HTML.png)
 
 ### csaw_workflow.R
-**csaw workflow for multiple differential accessibility analyses in R.** Graphical representation of proposed csaw workflow in R for calculating differential accessibility. Consider an experimental design with n = 2 biological replicates from two conditions: “treat” and “control”.
+**csaw workflow for multiple differential accessibility analyses in R.** Graphical representation of proposed csaw workflow in R for calculating differential accessibility. Consider an experimental design with n = 2 biological replicates from two conditions: “treat” and “control”. *Updates to the behavior of certain csaw functions have required slight compatibility changes to the commands described graphically, so please reference the latest R script.*
 
 ![foo2](https://media.springernature.com/full/springer-static/image/art%3A10.1186%2Fs13072-020-00342-y/MediaObjects/13072_2020_342_Fig6_HTML.png)
