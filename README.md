@@ -14,6 +14,6 @@ Attempt to run each command individually or in blocks after editing to match you
 ![foo](https://media.springernature.com/full/springer-static/image/art%3A10.1186%2Fs13072-020-00342-y/MediaObjects/13072_2020_342_Fig4_HTML.png)
 
 ### csaw_workflow.R
-**csaw workflow for multiple differential accessibility analyses in R.** Graphical representation of proposed csaw workflow in R for calculating differential accessibility. Consider an experimental design with n = 2 biological replicates from two conditions: “treat” and “control”. *Updates to the behavior of certain csaw functions have required slight compatibility changes to the commands described graphically, so please reference the latest R script.*
+***csaw* workflow for multiple differential accessibility analyses in R.** Consider an experimental design with *n* = 2 biological replicates from two conditions: “treat” and “control”. Describes implementation of two possible normalization methods and use of either *MACS2* peaks or *de novo* locally enriched windows as query regions for output comparison; see [*csaw* manual](https://bioconductor.org/packages/release/bioc/html/csaw.html) for additional normalization frameworks. *Note: updates to the behavior of certain csaw functions have required slight compatibility changes to the commands described graphically, so please reference the latest R script.*
 
 ![foo2](https://media.springernature.com/full/springer-static/image/art%3A10.1186%2Fs13072-020-00342-y/MediaObjects/13072_2020_342_Fig6_HTML.png)
