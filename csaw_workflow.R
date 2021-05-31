@@ -158,7 +158,7 @@ colnames(y$counts) <- c("control1", "control2", "treat1", "treat2")
 rownames(y$samples) <- c("control1", "control2", "treat1", "treat2")
 y$samples$group <- c("control", "control", "treat", "treat")
 design <- model.matrix(~0+group, data=y$samples)
-colnames(design) <- c("treat", "control")
+colnames(design) <- c("control", "treat")
 # design
 
 # stabilize dispersion estimates with empirical bayes
