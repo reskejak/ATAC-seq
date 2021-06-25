@@ -181,7 +181,7 @@ merged.peaks <- mergeWindows(rowRanges(working.windows), tol=500L, max.width=500
 tab.best <- getBestTest(merged.peaks$id, results$table)
  
 # concatenating all relevant statistical data for final merged windows (no redundant columns)
-final.merged.peaks <- GRanges(cbind(merged.peaks$region, results$table[tab.best$rep.test, -4], tab.best[,-c(7:8)]))
+final.merged.peaks <- GRanges(cbind(as.data.frame(merged.peaks$region), results$table[tab.best$rep.test, -4], tab.best[,-c(7:8)]))
  
 # sort by FDR
 final.merged.peaks <- final.merged.peaks[order(final.merged.peaks@elementMetadata$FDR), ]
