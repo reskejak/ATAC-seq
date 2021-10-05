@@ -137,7 +137,7 @@ counts.local.tmm <- normFactors(binned, se.out=counts.local.tmm)
 
 # method 4: csaw de novo peaks by local enrichment, csaw loess-normalization
 counts.local.loess <- counts.local.filt
-counts.local.loess <- normOffsets(counts.local.loess, type="loess", se.out=TRUE)
+counts.local.loess <- normOffsets(counts.local.loess, se.out=TRUE) # type="loess" is now default
 # from vignette: "For type="loess", a numeric matrix of the same dimensions as counts, containing the log-based offsets for use in GLM fitting."
 
 #########################################
