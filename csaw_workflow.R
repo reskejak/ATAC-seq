@@ -158,8 +158,9 @@ colnames(y$counts) <- c("control1", "control2", "treat1", "treat2")
 rownames(y$samples) <- c("control1", "control2", "treat1", "treat2")
 y$samples$group <- c("control", "control", "treat", "treat")
 design <- model.matrix(~0+group, data=y$samples)
-colnames(design) <- c("control", "treat")
+colnames(design) <- c("control", "treat") # CONFIRM THAT THESE COLUMNS CORRECTLY ALIGN!!
 # design
+# IMPORTANT: the user should manually confirm that the design matrix is correctly labeled according to sample metadata!
 
 # stabilize dispersion estimates with empirical bayes
 y <- estimateDisp(y, design)
