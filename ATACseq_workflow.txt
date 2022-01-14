@@ -247,8 +247,8 @@ bedtools intersect -v -a control2_peaks.broadPeak -b mm10.blacklist.bed | grep -
 # Definition from ENCODE / Kundaje et al.: "Find pooled peaks that overlap Rep1 and Rep2 where overlap is defined as the fractional overlap wrt any one of the overlapping peak pairs >= 0.5".
 
 # Call MACS2 broad peaks on pooled replicates and filter blacklist regions
-macs2 callpeak -t treat1.minimal.bedpe treat2.minimal.bedpe -f BEDPE -n treat_pool -g mm --broad --broad-cutoff 0.05 --keep-dup all
-macs2 callpeak -t control1.minimal.bedpe control2.minimal.bedpe -f BEDPE -n control_pool -g mm --broad --broad-cutoff 0.05 --keep-dup all
+macs2 callpeak -t treat1_sub.minimal.bedpe treat2_sub.minimal.bedpe -f BEDPE -n treat_pool -g mm --broad --broad-cutoff 0.05 --keep-dup all
+macs2 callpeak -t control1.minimal.bedpe control2_sub.minimal.bedpe -f BEDPE -n control_pool -g mm --broad --broad-cutoff 0.05 --keep-dup all
 bedtools intersect -v -a treat_pool_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > treat_pool_peaks.filt.broadPeak
 bedtools intersect -v -a control_pool_peaks.broadPeak -b mm10.blacklist.bed | grep -P 'chr[\dXY]+[ \t]' > control_pool_peaks.filt.broadPeak
 
